@@ -1,0 +1,13 @@
+bin/
+obj/
+node_modules/
+dist/
+logs/
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+.vs/
+.vscode/
+*.user
+*.suo
+.DS_Store

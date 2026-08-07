@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ClickTrainer.Api/ClickTrainer.Api.csproj" />
+    <Project Path="src/ClickTrainer.Core/ClickTrainer.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ClickTrainer.Core.Tests/ClickTrainer.Core.Tests.csproj" />
+  </Folder>
+</Solution>
