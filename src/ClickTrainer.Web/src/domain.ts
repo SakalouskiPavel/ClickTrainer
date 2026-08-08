@@ -23,6 +23,7 @@ export type TrainingStats = {
   bestStreak: number;
 };
 
+export const nonStopQueueSize = 4;
 export const modifierOrder: KeyModifier[] = ["Ctrl", "Alt", "Shift"];
 
 export const availableBaseKeys: KeyBind[] = [
@@ -67,15 +68,23 @@ export function matchesKeyboardEvent(bind: KeyBind, event: KeyboardEvent): boole
   );
 }
 
+export function generateBind(settings: TrainingSettings): KeyBind | undefined {
+  if (settings.keyBinds.length === 0) {
+    return undefined;
+  }
+
+  const index = Math.floor(Math.random() * settings.keyBinds.length);
+  return settings.keyBinds[index];
+}
+
 export function generatePrompt(settings: TrainingSettings): KeyBind[] {
   if (settings.keyBinds.length === 0) {
     return [];
   }
 
-  const count = settings.mode === "grouped" ? settings.groupSize : 1;
+  const count = settings.mode === "grouped" ? settings.groupSize : nonStopQueueSize;
 
   return Array.from({ length: count }, () => {
-    const index = Math.floor(Math.random() * settings.keyBinds.length);
-    return settings.keyBinds[index];
+    return generateBind(settings)!;
   });
 }

@@ -294,6 +294,14 @@ p,
   color: #005b5b;
 }
 
+.promptLine .upcoming {
+  border-color: #dce3e6;
+  background: #ffffff;
+  color: #7b8991;
+  font-size: 22px;
+  opacity: 0.72;
+}
+
 .promptLine .placeholder {
   color: #7b8991;
 }

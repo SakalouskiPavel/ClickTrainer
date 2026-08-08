@@ -5,6 +5,7 @@ import {
   bindKey,
   defaultKeyBinds,
   formatBind,
+  generateBind,
   generatePrompt,
   KeyBind,
   KeyModifier,
@@ -85,8 +86,21 @@ export function App() {
       return;
     }
 
-    createPrompt();
-  }, [createPrompt, mode]);
+    setCursor(0);
+    setPrompt((value) => {
+      const nextBind = generateBind(settings);
+
+      if (!nextBind) {
+        return [];
+      }
+
+      if (value.length <= 1) {
+        return generatePrompt(settings);
+      }
+
+      return [...value.slice(1), nextBind];
+    });
+  }, [mode, settings]);
 
   const advancePrompt = useCallback(() => {
     if (mode === "grouped" && cursor < prompt.length - 1) {
@@ -352,7 +366,10 @@ export function App() {
               <span className="placeholder">Start</span>
             ) : (
               prompt.map((bind, index) => (
-                <span key={`${index}-${bindKey(bind)}`} className={index === cursor ? "current" : ""}>
+                <span
+                  key={`${index}-${bindKey(bind)}`}
+                  className={index === cursor ? "current" : "upcoming"}
+                >
                   {formatBind(bind)}
                 </span>
               ))
