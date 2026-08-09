@@ -7,7 +7,9 @@ import {
   formatBind,
   generateBind,
   generatePrompt,
+  isModifierOnlyKey,
   KeyBind,
+  keyBindFromKeyboardEvent,
   KeyModifier,
   matchesKeyboardEvent,
   normalizeModifiers,
@@ -35,6 +37,8 @@ export function App() {
   const [remainingSeconds, setRemainingSeconds] = useState(durationSeconds);
   const [stats, setStats] = useState<TrainingStats>(initialStats);
   const [lastResult, setLastResult] = useState<"hit" | "miss" | null>(null);
+  const [isRecordingBind, setIsRecordingBind] = useState(false);
+  const [recordedBind, setRecordedBind] = useState<KeyBind | null>(null);
 
   const settings: TrainingSettings = useMemo(
     () => ({
@@ -150,7 +154,7 @@ export function App() {
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (["Alt", "Control", "Shift"].includes(event.key)) {
+      if (isModifierOnlyKey(event)) {
         return;
       }
 
@@ -184,6 +188,36 @@ export function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeBind, advancePrompt, isRunning, isWaitingForGroup]);
 
+  useEffect(() => {
+    if (!isRecordingBind) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const bind = keyBindFromKeyboardEvent(event);
+
+      if (!bind) {
+        return;
+      }
+
+      setKeyBinds((value) => {
+        if (value.some((item) => bindKey(item) === bindKey(bind))) {
+          return value;
+        }
+
+        return [...value, bind];
+      });
+      setRecordedBind(bind);
+      setIsRecordingBind(false);
+    };
+
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [isRecordingBind]);
+
   const toggleBaseKey = (code: string) => {
     setSelectedCodes((value) =>
       value.includes(code) ? value.filter((item) => item !== code) : [...value, code]
@@ -209,6 +243,11 @@ export function App() {
       const known = new Set(value.map(bindKey));
       return [...value, ...additions.filter((bind) => !known.has(bindKey(bind)))];
     });
+  };
+
+  const startRecordingBind = () => {
+    setRecordedBind(null);
+    setIsRecordingBind((value) => !value);
   };
 
   const removeBind = (target: KeyBind) => {
@@ -320,6 +359,24 @@ export function App() {
               </button>
               <button onClick={resetBinds}>Reset</button>
             </div>
+          </div>
+
+          <div className="fieldGroup">
+            <label>Custom hotkey</label>
+            <button
+              className={`recordButton ${isRecordingBind ? "recording" : ""}`}
+              disabled={isRunning}
+              onClick={startRecordingBind}
+            >
+              {isRecordingBind ? "Press any key..." : "Record hotkey"}
+            </button>
+            <p className="captureStatus">
+              {isRecordingBind
+                ? "Waiting for a key or combination"
+                : recordedBind
+                  ? `Added ${formatBind(recordedBind)}`
+                  : "Use this for any keyboard key outside the Dota preset"}
+            </p>
           </div>
 
           <div className="bindList" aria-label="Training key binds">

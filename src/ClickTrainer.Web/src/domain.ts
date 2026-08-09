@@ -68,6 +68,76 @@ export function matchesKeyboardEvent(bind: KeyBind, event: KeyboardEvent): boole
   );
 }
 
+export function isModifierOnlyKey(event: KeyboardEvent): boolean {
+  return ["Alt", "Control", "Shift"].includes(event.key);
+}
+
+export function modifiersFromKeyboardEvent(event: KeyboardEvent): KeyModifier[] {
+  return normalizeModifiers([
+    ...(event.ctrlKey ? (["Ctrl"] as const) : []),
+    ...(event.altKey ? (["Alt"] as const) : []),
+    ...(event.shiftKey ? (["Shift"] as const) : [])
+  ]);
+}
+
+export function keyBindFromKeyboardEvent(event: KeyboardEvent): KeyBind | undefined {
+  if (isModifierOnlyKey(event)) {
+    return undefined;
+  }
+
+  return {
+    code: event.code,
+    label: labelFromKeyboardEvent(event),
+    modifiers: modifiersFromKeyboardEvent(event)
+  };
+}
+
+function labelFromKeyboardEvent(event: KeyboardEvent): string {
+  if (/^Key[A-Z]$/.test(event.code)) {
+    return event.code.slice(3);
+  }
+
+  if (/^Digit[0-9]$/.test(event.code)) {
+    return event.code.slice(5);
+  }
+
+  if (/^Numpad[0-9]$/.test(event.code)) {
+    return `Num ${event.code.slice(6)}`;
+  }
+
+  const labels: Record<string, string> = {
+    Backquote: "`",
+    Backslash: "\\",
+    BracketLeft: "[",
+    BracketRight: "]",
+    Comma: ",",
+    Equal: "=",
+    Escape: "Esc",
+    IntlBackslash: "\\",
+    Minus: "-",
+    Period: ".",
+    Quote: "'",
+    Semicolon: ";",
+    Slash: "/",
+    Space: "Space",
+    Tab: "Tab"
+  };
+
+  if (event.code in labels) {
+    return labels[event.code];
+  }
+
+  if (event.code.startsWith("Arrow")) {
+    return event.code.replace("Arrow", "");
+  }
+
+  if (event.code.startsWith("Numpad")) {
+    return event.code.replace("Numpad", "Num ");
+  }
+
+  return event.key.length === 1 ? event.key.toUpperCase() : event.key;
+}
+
 export function generateBind(settings: TrainingSettings): KeyBind | undefined {
   if (settings.keyBinds.length === 0) {
     return undefined;

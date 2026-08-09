@@ -125,6 +125,7 @@ p,
 .segmented button,
 .modifierRow button,
 .presetActions button,
+.recordButton,
 .controls button {
   border: 1px solid #d2dade;
   background: #f7f9fa;
@@ -185,6 +186,25 @@ p,
 
 .presetActions {
   margin-top: 10px;
+}
+
+.recordButton {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 6px;
+  font-weight: 800;
+}
+
+.recordButton.recording {
+  border-color: #c68a00;
+  background: #fff6d8;
+  color: #7a5200;
+}
+
+.captureStatus {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .bindList {
