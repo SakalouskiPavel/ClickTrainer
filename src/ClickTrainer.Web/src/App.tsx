@@ -21,6 +21,48 @@ import {
 const modifierOptions: KeyModifier[] = ["Alt", "Ctrl", "Shift"];
 const initialStats: TrainingStats = { correct: 0, misses: 0, streak: 0, bestStreak: 0 };
 const defaultSelectedCodes = defaultKeyBinds.map((bind) => bind.code);
+const presetsStorageKey = "clickTrainer.bindPresets.v1";
+
+type BindPreset = {
+  id: string;
+  name: string;
+  keyBinds: KeyBind[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+function loadStoredPresets(): BindPreset[] {
+  const raw = window.localStorage.getItem(presetsStorageKey);
+
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter(isBindPreset);
+  } catch {
+    return [];
+  }
+}
+
+function isBindPreset(value: unknown): value is BindPreset {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<BindPreset>;
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.name === "string" &&
+    Array.isArray(candidate.keyBinds)
+  );
+}
 
 export function App() {
   const [mode, setMode] = useState<TrainingMode>("grouped");
@@ -39,6 +81,10 @@ export function App() {
   const [lastResult, setLastResult] = useState<"hit" | "miss" | null>(null);
   const [isRecordingBind, setIsRecordingBind] = useState(false);
   const [recordedBind, setRecordedBind] = useState<KeyBind | null>(null);
+  const [savedPresets, setSavedPresets] = useState<BindPreset[]>(loadStoredPresets);
+  const [selectedPresetId, setSelectedPresetId] = useState("");
+  const [presetName, setPresetName] = useState("");
+  const [presetMessage, setPresetMessage] = useState("");
 
   const settings: TrainingSettings = useMemo(
     () => ({
@@ -118,6 +164,10 @@ export function App() {
   useEffect(() => {
     setRemainingSeconds(durationSeconds);
   }, [durationSeconds]);
+
+  useEffect(() => {
+    window.localStorage.setItem(presetsStorageKey, JSON.stringify(savedPresets));
+  }, [savedPresets]);
 
   useEffect(() => {
     if (!isRunning) {
@@ -260,6 +310,73 @@ export function App() {
     setSelectedModifiers([]);
   };
 
+  const savePreset = () => {
+    const now = new Date().toISOString();
+    const name = presetName.trim() || `Preset ${savedPresets.length + 1}`;
+
+    if (selectedPresetId) {
+      setSavedPresets((value) =>
+        value.map((preset) =>
+          preset.id === selectedPresetId
+            ? { ...preset, name, keyBinds, updatedAt: now }
+            : preset
+        )
+      );
+      setPresetMessage(`Updated ${name}`);
+      return;
+    }
+
+    const preset: BindPreset = {
+      id: crypto.randomUUID(),
+      name,
+      keyBinds,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    setSavedPresets((value) => [...value, preset]);
+    setSelectedPresetId(preset.id);
+    setPresetName(preset.name);
+    setPresetMessage(`Saved ${preset.name}`);
+  };
+
+  const loadPreset = () => {
+    const preset = savedPresets.find((item) => item.id === selectedPresetId);
+
+    if (!preset) {
+      return;
+    }
+
+    setIsRunning(false);
+    setIsWaitingForGroup(false);
+    setPrompt([]);
+    setCursor(0);
+    setKeyBinds(preset.keyBinds);
+    setPresetName(preset.name);
+    setPresetMessage(`Loaded ${preset.name}`);
+  };
+
+  const deletePreset = () => {
+    const preset = savedPresets.find((item) => item.id === selectedPresetId);
+
+    if (!preset) {
+      return;
+    }
+
+    setSavedPresets((value) => value.filter((item) => item.id !== selectedPresetId));
+    setSelectedPresetId("");
+    setPresetName("");
+    setPresetMessage(`Deleted ${preset.name}`);
+  };
+
+  const selectPreset = (presetId: string) => {
+    setSelectedPresetId(presetId);
+    setPresetMessage("");
+
+    const preset = savedPresets.find((item) => item.id === presetId);
+    setPresetName(preset?.name ?? "");
+  };
+
   const trainerTitle = isWaitingForGroup
     ? "Next group incoming"
     : isRunning
@@ -376,6 +493,39 @@ export function App() {
                 : recordedBind
                   ? `Added ${formatBind(recordedBind)}`
                   : "Use this for any keyboard key outside the Dota preset"}
+            </p>
+          </div>
+
+          <div className="fieldGroup">
+            <label>Presets</label>
+            <div className="presetEditor">
+              <select value={selectedPresetId} onChange={(event) => selectPreset(event.target.value)}>
+                <option value="">New preset</option>
+                {savedPresets.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                placeholder="Preset name"
+                value={presetName}
+                onChange={(event) => setPresetName(event.target.value)}
+              />
+            </div>
+            <div className="presetActions">
+              <button className="addButton" disabled={keyBinds.length === 0} onClick={savePreset}>
+                {selectedPresetId ? "Update" : "Save"}
+              </button>
+              <button disabled={!selectedPresetId} onClick={loadPreset}>
+                Load
+              </button>
+              <button disabled={!selectedPresetId} onClick={deletePreset}>
+                Delete
+              </button>
+            </div>
+            <p className="captureStatus">
+              {presetMessage || `${savedPresets.length} saved preset${savedPresets.length === 1 ? "" : "s"}`}
             </p>
           </div>
 

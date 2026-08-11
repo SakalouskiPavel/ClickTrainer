@@ -37,7 +37,7 @@ cd src\ClickTrainer.Web
 npm run dev -- --host 127.0.0.1
 ```
 
-Open http://127.0.0.1:5173/.
+Open http://127.0.0.1:4300/.
 
 ## Verify
 
