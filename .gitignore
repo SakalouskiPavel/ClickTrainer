@@ -3,6 +3,7 @@ obj/
 node_modules/
 dist/
 logs/
+App_Data/
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts

@@ -21,7 +21,7 @@ import {
 const modifierOptions: KeyModifier[] = ["Alt", "Ctrl", "Shift"];
 const initialStats: TrainingStats = { correct: 0, misses: 0, streak: 0, bestStreak: 0 };
 const defaultSelectedCodes = defaultKeyBinds.map((bind) => bind.code);
-const presetsStorageKey = "clickTrainer.bindPresets.v1";
+const presetsApiPath = "/api/bind-presets";
 
 type BindPreset = {
   id: string;
@@ -31,37 +31,26 @@ type BindPreset = {
   updatedAt: string;
 };
 
-function loadStoredPresets(): BindPreset[] {
-  const raw = window.localStorage.getItem(presetsStorageKey);
+type SaveBindPresetRequest = {
+  name: string;
+  keyBinds: KeyBind[];
+};
 
-  if (!raw) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-
-    if (!Array.isArray(parsed)) {
-      return [];
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...init?.headers
     }
+  });
 
-    return parsed.filter(isBindPreset);
-  } catch {
-    return [];
-  }
-}
-
-function isBindPreset(value: unknown): value is BindPreset {
-  if (!value || typeof value !== "object") {
-    return false;
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(body || `Request failed with ${response.status}`);
   }
 
-  const candidate = value as Partial<BindPreset>;
-  return (
-    typeof candidate.id === "string" &&
-    typeof candidate.name === "string" &&
-    Array.isArray(candidate.keyBinds)
-  );
+  return response.json() as Promise<T>;
 }
 
 export function App() {
@@ -81,7 +70,7 @@ export function App() {
   const [lastResult, setLastResult] = useState<"hit" | "miss" | null>(null);
   const [isRecordingBind, setIsRecordingBind] = useState(false);
   const [recordedBind, setRecordedBind] = useState<KeyBind | null>(null);
-  const [savedPresets, setSavedPresets] = useState<BindPreset[]>(loadStoredPresets);
+  const [savedPresets, setSavedPresets] = useState<BindPreset[]>([]);
   const [selectedPresetId, setSelectedPresetId] = useState("");
   const [presetName, setPresetName] = useState("");
   const [presetMessage, setPresetMessage] = useState("");
@@ -165,9 +154,19 @@ export function App() {
     setRemainingSeconds(durationSeconds);
   }, [durationSeconds]);
 
+  const refreshPresets = useCallback(async () => {
+    try {
+      const presets = await fetchJson<BindPreset[]>(presetsApiPath);
+      setSavedPresets(presets);
+      setPresetMessage(`${presets.length} backend preset${presets.length === 1 ? "" : "s"}`);
+    } catch {
+      setPresetMessage("Backend presets unavailable");
+    }
+  }, []);
+
   useEffect(() => {
-    window.localStorage.setItem(presetsStorageKey, JSON.stringify(savedPresets));
-  }, [savedPresets]);
+    void refreshPresets();
+  }, [refreshPresets]);
 
   useEffect(() => {
     if (!isRunning) {
@@ -310,34 +309,37 @@ export function App() {
     setSelectedModifiers([]);
   };
 
-  const savePreset = () => {
-    const now = new Date().toISOString();
+  const savePreset = async () => {
     const name = presetName.trim() || `Preset ${savedPresets.length + 1}`;
+    const request: SaveBindPresetRequest = { name, keyBinds };
 
-    if (selectedPresetId) {
-      setSavedPresets((value) =>
-        value.map((preset) =>
-          preset.id === selectedPresetId
-            ? { ...preset, name, keyBinds, updatedAt: now }
-            : preset
-        )
-      );
-      setPresetMessage(`Updated ${name}`);
-      return;
+    try {
+      if (selectedPresetId) {
+        const preset = await fetchJson<BindPreset>(`${presetsApiPath}/${selectedPresetId}`, {
+          method: "PUT",
+          body: JSON.stringify(request)
+        });
+
+        setSavedPresets((value) =>
+          value.map((item) => (item.id === preset.id ? preset : item))
+        );
+        setPresetName(preset.name);
+        setPresetMessage(`Updated ${preset.name}`);
+        return;
+      }
+
+      const preset = await fetchJson<BindPreset>(presetsApiPath, {
+        method: "POST",
+        body: JSON.stringify(request)
+      });
+
+      setSavedPresets((value) => [...value, preset]);
+      setSelectedPresetId(preset.id);
+      setPresetName(preset.name);
+      setPresetMessage(`Saved ${preset.name}`);
+    } catch {
+      setPresetMessage("Could not save preset");
     }
-
-    const preset: BindPreset = {
-      id: crypto.randomUUID(),
-      name,
-      keyBinds,
-      createdAt: now,
-      updatedAt: now
-    };
-
-    setSavedPresets((value) => [...value, preset]);
-    setSelectedPresetId(preset.id);
-    setPresetName(preset.name);
-    setPresetMessage(`Saved ${preset.name}`);
   };
 
   const loadPreset = () => {
@@ -356,17 +358,29 @@ export function App() {
     setPresetMessage(`Loaded ${preset.name}`);
   };
 
-  const deletePreset = () => {
+  const deletePreset = async () => {
     const preset = savedPresets.find((item) => item.id === selectedPresetId);
 
     if (!preset) {
       return;
     }
 
-    setSavedPresets((value) => value.filter((item) => item.id !== selectedPresetId));
-    setSelectedPresetId("");
-    setPresetName("");
-    setPresetMessage(`Deleted ${preset.name}`);
+    try {
+      const response = await fetch(`${presetsApiPath}/${selectedPresetId}`, {
+        method: "DELETE"
+      });
+
+      if (!response.ok) {
+        throw new Error(`Request failed with ${response.status}`);
+      }
+
+      setSavedPresets((value) => value.filter((item) => item.id !== selectedPresetId));
+      setSelectedPresetId("");
+      setPresetName("");
+      setPresetMessage(`Deleted ${preset.name}`);
+    } catch {
+      setPresetMessage("Could not delete preset");
+    }
   };
 
   const selectPreset = (presetId: string) => {

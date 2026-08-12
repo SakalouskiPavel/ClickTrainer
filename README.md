@@ -20,7 +20,9 @@ tests/
   ClickTrainer.Core.Tests/
 ```
 
-The frontend handles low-latency keyboard input in the browser. The backend is intended for presets, history, statistics, and future synchronization.
+The frontend handles low-latency keyboard input in the browser. The backend stores bind presets and is intended to grow into history, statistics, and future synchronization.
+
+Bind presets are exposed through `/api/bind-presets` and stored locally by the API in `src/ClickTrainer.Api/App_Data/bind-presets.json`.
 
 ## Run
 
