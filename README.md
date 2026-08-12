@@ -26,20 +26,38 @@ Bind presets are exposed through `/api/bind-presets` and stored locally by the A
 
 ## Run
 
-Backend:
+Start backend and frontend together:
+
+```powershell
+.\scripts\start-dev.ps1
+```
+
+Stop them:
+
+```powershell
+.\scripts\stop-dev.ps1
+```
+
+If the PID file is missing but old dev servers still hold the ports:
+
+```powershell
+.\scripts\stop-dev.ps1 -Ports
+```
+
+Open http://127.0.0.1:4300/.
+
+Backend only:
 
 ```powershell
 dotnet run --project src\ClickTrainer.Api\ClickTrainer.Api.csproj --launch-profile https
 ```
 
-Frontend:
+Frontend only:
 
 ```powershell
 cd src\ClickTrainer.Web
 npm run dev -- --host 127.0.0.1
 ```
-
-Open http://127.0.0.1:4300/.
 
 ## Verify
 
